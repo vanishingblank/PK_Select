@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 import sys
-
+import random
 
 def load_data(filename):
     try:
@@ -62,10 +62,19 @@ def select_programmers(data):
 
         if eligible_members:
             selected = eligible_members[0]
-            selected_members.append((group_index, selected))
-            selected['program'] = False  # 将选中的学生的 program 属性设置为 False
+        else:
+            # 如果没有合格的程序员，随机选择一个未缺席的学生
+            eligible_members = [member for member in group if not member['absent']]
+            if eligible_members:
+                selected = random.choice(eligible_members)
+            else:
+                continue  # 如果组里没有未缺席的学生，跳过该组
+
+        selected_members.append((group_index, selected))
+        selected['program'] = False  # 将选中的学生的 program 属性设置为 False
 
     return selected_members
+
 
 
 def write_results_to_file(selected_students, selected_photographers):
@@ -93,18 +102,27 @@ def write_results_to_file(selected_students, selected_photographers):
 
 
 # 在 select_photographers 函数中添加监督组号
-def select_photographers(data):
+
+def select_photographers(data, selected_programmers):
     selected_photographers = []
+    selected_programmer_names = {student['name'] for _, student in selected_programmers}  # 获取已选程序员的名字
+
     for group_key, group in data.items():
         group_index = int(group_key.split('.')[0])
-        eligible_members = [member for member in group if not member['absent'] and member['shoot']]
+        eligible_members = [member for member in group if not member['absent'] and member['shoot'] and member['name'] not in selected_programmer_names]
 
         if eligible_members:
             selected = eligible_members[0]
-            selected_photographers.append((group_index, selected))
-            selected['shoot'] = False  # 将选中的学生的 shoot 属性设置为 False
+        else:
+            # 如果没有合格的摄影师，随机选择一个未缺席的学生
+            eligible_members = [member for member in group if not member['absent'] and member['name'] not in selected_programmer_names]
+            if eligible_members:
+                selected = random.choice(eligible_members)
+            else:
+                continue  # 如果组里没有未缺席的学生，跳过该组
 
-
+        selected_photographers.append((group_index, selected))
+        selected['shoot'] = False  # 将选中的学生的 shoot 属性设置为 False
 
     return selected_photographers
 
@@ -135,7 +153,7 @@ def main():
     print("已更新 absent 属性。")
 
     selected_students = select_programmers(data)
-    selected_photographers = select_photographers(data)
+    selected_photographers = select_photographers(data,selected_students)
 
     # 保存更新后的数据
     save_data(filename, data)
