@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
-import sys  # 导入 sys 模块
+import sys
+
 
 def load_data(filename):
     try:
@@ -18,24 +19,39 @@ def save_data(filename, data):
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
+
 def update_students(data):
     for group_id, students in data.items():
-        all_false = all(not (student["shoot"] or student["program"]) for student in students)
-
-        if all_false:
+        # 检查该组所有学生的 program 属性
+        all_program_false = all(not student["program"] for student in students)
+        if all_program_false:
             for student in students:
-                student["shoot"] = True
-                student["program"] = True
+                student["program"] = True  # 将该组所有学生的 program 属性设置为 True
 
+        # 检查该组所有学生的 shoot 属性
+        all_shoot_false = all(not student["shoot"] for student in students)
+        if all_shoot_false:
+            for student in students:
+                student["shoot"] = True  # 将该组所有学生的 shoot 属性设置为 True
+
+    # 将所有学生的 absent 属性设置为 False
     for group_id, students in data.items():
         for student in students:
             student['absent'] = False
 
+
+
 def mark_absent(data, names_to_mark):
-    for group_id, students in data.items():
-        for student in students:
-            if student['name'] in names_to_mark:
-                student['absent'] = True
+    valid_names = {student['name'] for group in data.values() for student in group}
+    for name in names_to_mark:
+        if name in valid_names:
+            for group_id, students in data.items():
+                for student in students:
+                    if student['name'] == name:
+                        student['absent'] = True
+        else:
+            print(f"警告: 名字 '{name}' 不在学生名单中。")
+
 
 
 def select_programmers(data):
@@ -43,36 +59,61 @@ def select_programmers(data):
     for group_key, group in data.items():
         group_index = int(group_key.split('.')[0])
         eligible_members = [member for member in group if not member['absent'] and member['program']]
+
         if eligible_members:
             selected = eligible_members[0]
             selected_members.append((group_index, selected))
-            # 将选中的学生的 program 属性设置为 False
-            selected['program'] = False
+            selected['program'] = False  # 将选中的学生的 program 属性设置为 False
+
     return selected_members
 
 
-def write_results_to_file(selected_students):
-    # 获取当前日期
+def write_results_to_file(selected_students, selected_photographers):
     current_date = datetime.now().strftime("%Y-%m-%d")
     filename = f"{current_date}.txt"
 
     with open(filename, 'w', encoding='utf-8') as f:
-        f.write("组号\t参赛同学\t学号\n")
-        for group_index, student in selected_students:  # 提取元组中的组号和学生信息
-            # 假设 'student id' 是字典中的一个键，否则你需要替换为正确的键
-            if 'student id' in student:  # 确保 'student id' 键存在
-                f.write(f"{group_index}\t{student['name']}\t{student['student id']}\n")
-            else:
-                f.write(f"{group_index}\t{student['name']}\tN/A\n")  # 如果 'student id' 不存在，则输出 N/A
+        f.write("测试要求\n")
+        f.write("（1）参赛同学可以操作机器提交代码，其他同学只能围观，不能操作机器。\n")
+        f.write("组号\t\t\t参赛同学\t\t\t学号\n")
+
+        for group_index, student in selected_students:
+            f.write(f"第{group_index}组\t\t{student['name']}\t\t{student['student id']}\n")
+
+        f.write("（2）监督同学\n")
+        f.write("①负责监督被监督小组做题过程中是否存在作弊行为\n")
+        f.write("②拍一张被监督小组做题的照片，证明正在做题的情形，命名 \"小组PK1_组号_姓名.png\"\n")
+        f.write("组号\t\t\t监督同学\t\t\t学号\t\t\t监督组号\n")
+
+        for group_index, photographer in selected_photographers:
+            f.write(
+                f"第{group_index}组\t\t{photographer['name']}\t\t{photographer['student id']}\t\t{photographer['supervised group']}\n")
 
     print(f"结果已保存到 {filename}")
 
 
+# 在 select_photographers 函数中添加监督组号
+def select_photographers(data):
+    selected_photographers = []
+    for group_key, group in data.items():
+        group_index = int(group_key.split('.')[0])
+        eligible_members = [member for member in group if not member['absent'] and member['shoot']]
+
+        if eligible_members:
+            selected = eligible_members[0]
+            selected_photographers.append((group_index, selected))
+            selected['shoot'] = False  # 将选中的学生的 shoot 属性设置为 False
+
+
+
+    return selected_photographers
+
+
 def main():
     filename = 'output.json'
-
     data = load_data(filename)
-    if not data:  # 如果 data 是 {}，则结束程序
+
+    if not data:
         print("没有加载到有效的数据，程序结束。")
         sys.exit()
 
@@ -93,14 +134,15 @@ def main():
     save_data(filename, data)
     print("已更新 absent 属性。")
 
-    selected_students = select_programmers(data)  # 只调用一次
-    save_data(filename, data)  # 保存更新后的 program 属性
-    write_results_to_file(selected_students)
-    # 这里不需要再次保存数据到文件，因为前面已经保存过了
-    #print("")
+    selected_students = select_programmers(data)
+    selected_photographers = select_photographers(data)
+
+    # 保存更新后的数据
+    save_data(filename, data)
+
+    write_results_to_file(selected_students, selected_photographers)
+    print("")
 
 
 if __name__ == "__main__":
     main()
-
-
