@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 import sys
 import random
+import os
 
 def load_data(filename):
     try:
@@ -54,6 +55,7 @@ def mark_absent(data, names_to_mark):
 
 
 
+
 def select_programmers(data):
     selected_members = []
     for group_key, group in data.items():
@@ -77,7 +79,7 @@ def select_programmers(data):
 
 
 
-def write_results_to_file(selected_students, selected_photographers):
+def write_results_to_file(selected_students, selected_photographers,pk_num):
     current_date = datetime.now().strftime("%Y-%m-%d")
     filename = f"{current_date}.txt"
 
@@ -91,7 +93,7 @@ def write_results_to_file(selected_students, selected_photographers):
 
         f.write("（2）监督同学\n")
         f.write("①负责监督被监督小组做题过程中是否存在作弊行为\n")
-        f.write("②拍一张被监督小组做题的照片，证明正在做题的情形，命名 \"小组PK1_组号_姓名.png\"\n")
+        f.write(f"②拍一张被监督小组做题的照片，证明正在做题的情形，命名 \"小组PK{pk_num}_组号_姓名.png\"\n")
         f.write("组号\t\t\t监督同学\t\t\t学号\t\t\t监督组号\n")
 
         for group_index, photographer in selected_photographers:
@@ -127,12 +129,26 @@ def select_photographers(data, selected_programmers):
     return selected_photographers
 
 
+
+
+
 def main():
-    filename = 'output.json'
+    class_number = input("请输入上课班级（1 或 2）：")
+    if class_number == '1':
+        filename = '241-1.json'
+    elif class_number == '2':
+        filename = '241-2.json'
+    else:
+        input("无效的班级输入，程序结束。")
+        sys.exit()
+
+    pk_num = input("请输入这是第几次PK：")
+
     data = load_data(filename)
 
     if not data:
         print("没有加载到有效的数据，程序结束。")
+        input("")
         sys.exit()
 
     update_students(data)
@@ -140,13 +156,17 @@ def main():
     print("运行成功，数据初始化完成")
 
     names_to_mark = []
+    valid_names = {student['name'] for group in data.values() for student in group}  # 获取所有有效的学生名字
     print("有人缺席了吗？请输入人名，输入 'end' 结束：")
 
     while True:
         name = input()
         if name.lower() == 'end':
             break
-        names_to_mark.append(name)
+        if name in valid_names:
+            names_to_mark.append(name)
+        else:
+            print(f"警告: 名字 '{name}' 不在学生名单中。")
 
     mark_absent(data, names_to_mark)
     save_data(filename, data)
@@ -158,8 +178,11 @@ def main():
     # 保存更新后的数据
     save_data(filename, data)
 
-    write_results_to_file(selected_students, selected_photographers)
+
+
+    write_results_to_file(selected_students, selected_photographers,pk_num)
     print("")
+    input("")
 
 
 if __name__ == "__main__":
