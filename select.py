@@ -50,6 +50,7 @@ def mark_absent(data, names_to_mark):
                 for student in students:
                     if student['name'] == name:
                         student['absent'] = True
+                        student['absent times'] += 1
         else:
             print(f"警告: 名字 '{name}' 不在学生名单中。")
 
@@ -58,6 +59,13 @@ def mark_absent(data, names_to_mark):
 
 def select_programmers(data):
     selected_members = []
+    all_eligible_members = []  # 用于存储所有组的未缺席学生
+
+    # 首先收集所有组的未缺席学生
+    for group_key, group in data.items():
+        eligible_members = [member for member in group if not member['absent']]
+        all_eligible_members.extend(eligible_members)
+
     for group_key, group in data.items():
         group_index = int(group_key.split('.')[0])
         eligible_members = [member for member in group if not member['absent'] and member['program']]
@@ -65,16 +73,22 @@ def select_programmers(data):
         if eligible_members:
             selected = eligible_members[0]
         else:
-            # 如果没有合格的程序员，随机选择一个未缺席的学生
+            # 如果没有合格的程序员，选择 absent times 最大的学生
             eligible_members = [member for member in group if not member['absent']]
             if eligible_members:
-                selected = random.choice(eligible_members)
+                max_absent_times = max(member.get('absent times', 0) for member in eligible_members)
+                candidates = [member for member in eligible_members if member.get('absent times', 0) == max_absent_times]
+                selected = random.choice(candidates)  # 随机选择一个
             else:
-                continue  # 如果组里没有未缺席的学生，跳过该组
+                # 如果组里没有未缺席的学生，从其他组中选择
+                if all_eligible_members:
+                    selected = random.choice(all_eligible_members)  # 从所有未缺席的学生中随机选择
+                else:
+                    continue  # 如果没有未缺席的学生，跳过该组
 
         selected_members.append((group_index, selected))
         selected['program'] = False  # 将选中的学生的 program 属性设置为 False
-
+        selected['absent times'] = 0
     return selected_members
 
 
@@ -105,9 +119,16 @@ def write_results_to_file(selected_students, selected_photographers,pk_num):
 
 # 在 select_photographers 函数中添加监督组号
 
+
 def select_photographers(data, selected_programmers):
     selected_photographers = []
     selected_programmer_names = {student['name'] for _, student in selected_programmers}  # 获取已选程序员的名字
+    all_eligible_members = []  # 用于存储所有组的未缺席学生
+
+    # 首先收集所有组的未缺席学生
+    for group_key, group in data.items():
+        eligible_members = [member for member in group if not member['absent'] and member['name'] not in selected_programmer_names]
+        all_eligible_members.extend(eligible_members)
 
     for group_key, group in data.items():
         group_index = int(group_key.split('.')[0])
@@ -116,19 +137,76 @@ def select_photographers(data, selected_programmers):
         if eligible_members:
             selected = eligible_members[0]
         else:
-            # 如果没有合格的摄影师，随机选择一个未缺席的学生
+            # 如果没有合格的摄影师，选择 absent times 最大的学生
             eligible_members = [member for member in group if not member['absent'] and member['name'] not in selected_programmer_names]
             if eligible_members:
-                selected = random.choice(eligible_members)
+                max_absent_times = max(member.get('absent times', 0) for member in eligible_members)
+                candidates = [member for member in eligible_members if member.get('absent times', 0) == max_absent_times]
+                selected = random.choice(candidates)  # 随机选择一个
             else:
-                continue  # 如果组里没有未缺席的学生，跳过该组
+                # 如果组里没有未缺席的学生，从其他组中选择
+                if all_eligible_members:
+                    selected = random.choice(all_eligible_members)  # 从所有未缺席的学生中随机选择
+                else:
+                    continue  # 如果没有未缺席的学生，跳过该组
 
         selected_photographers.append((group_index, selected))
         selected['shoot'] = False  # 将选中的学生的 shoot 属性设置为 False
-
+        if selected['absent times'] > 0:
+            selected['absent times'] -= 1
     return selected_photographers
 
 
+def backup_data(filename, data, pk_num, class_number):
+    # 根据班级数选择备份文件夹
+    if class_number == '1':
+        backup_folder = '241-1备份'
+    elif class_number == '2':
+        backup_folder = '241-2备份'
+    else:
+        print("无效的班级数，无法保存备份。")
+        return
+
+    # 确保备份文件夹存在
+    os.makedirs(backup_folder, exist_ok=True)
+
+    # 创建备份文件名
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # 格式化时间戳
+    backup_filename = os.path.join(backup_folder,
+                                   f"{os.path.splitext(os.path.basename(filename))[0]}_PK{pk_num}_{timestamp}.json")
+
+    # 备份当前数据
+    try:
+        with open(backup_filename, 'w', encoding='utf-8') as backup_file:
+            json.dump(data, backup_file, ensure_ascii=False, indent=4)
+        print(f"备份已保存到 {backup_filename}")
+    except Exception as e:
+        print(f"备份文件保存失败: {e}")
+
+
+def write_absent_students_to_file(data, pk_num, class_number):
+    # 获取当前日期
+    current_date = datetime.now().strftime("%Y-%m-%d")
+
+    # 根据班级号选择文件名
+    if class_number == '1':
+        filename = 'class_241-1_absent.txt'
+    elif class_number == '2':
+        filename = 'class_241-2_absent.txt'
+    else:
+        print("无效的班级号，无法写入缺席学生信息。")
+        return
+
+    # 打开文件以追加模式写入
+    with open(filename, 'a', encoding='utf-8') as f:
+        f.write(f"PK 第 {pk_num} 次缺席学生记录 - 日期: {current_date}\n")
+        for group_id, students in data.items():
+            absent_students = [student['name'] for student in students if student['absent']]
+            if absent_students:
+                f.write(f"组 {group_id}: {', '.join(absent_students)}\n")
+        f.write("\n")  # 添加一个空行以便于分隔不同的记录
+
+    print(f"缺席学生信息已写入 {filename}")
 
 
 
@@ -151,6 +229,9 @@ def main():
         input("")
         sys.exit()
 
+    # 在更新数据之前进行备份
+    backup_data(filename, data, pk_num, class_number)
+
     update_students(data)
     save_data(filename, data)
     print("运行成功，数据初始化完成")
@@ -168,8 +249,10 @@ def main():
         else:
             print(f"警告: 名字 '{name}' 不在学生名单中。")
 
+
     mark_absent(data, names_to_mark)
     save_data(filename, data)
+    write_absent_students_to_file(data, pk_num, class_number)
     print("已更新 absent 属性。")
 
     selected_students = select_programmers(data)
