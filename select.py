@@ -3,6 +3,7 @@ from datetime import datetime
 import sys
 import random
 import os
+import threading
 
 def load_data(filename):
     try:
@@ -168,7 +169,7 @@ def backup_data(filename, data, pk_num, class_number):
     # 创建备份文件名
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # 格式化时间戳
     backup_filename = os.path.join(backup_folder,
-                                   f"{os.path.splitext(os.path.basename(filename))[0]}_PK{pk_num}_{timestamp}.json")
+                                   f"{os.path.splitext(os.path.basename(filename))[0]}_PK{pk_num}前_{timestamp}.json")
 
     # 备份当前数据
     try:
@@ -244,10 +245,11 @@ def select_class_file():
         except ValueError:
             print("请输入一个有效的数字。")
 
-def main():
-    filename,class_number = select_class_file()
-    #print(class_number)
+def generate_pk(class_number):
+    """生成小组 PK 的功能。"""
+    filename, class_number = select_class_file()
     pk_num = input("请输入这是第几次PK：")
+
     data = load_data(filename)
 
     if not data:
@@ -256,7 +258,7 @@ def main():
         sys.exit()
 
     # 在更新数据之前进行备份
-    backup_data(filename, data, pk_num, class_number)
+    backup_data(filename, data, pk_num, class_number)  # 使用 class_number
 
     update_students(data)
     save_data(filename, data)
@@ -275,24 +277,23 @@ def main():
         else:
             print(f"警告: 名字 '{name}' 不在学生名单中。")
 
-
     mark_absent(data, names_to_mark)
     save_data(filename, data)
-    write_absent_students_to_file(data, pk_num, class_number)
+    write_absent_students_to_file(data, pk_num, class_number)  # 使用 class_number
     print("已更新 absent 属性。")
 
     selected_students = select_programmers(data)
-    selected_photographers = select_photographers(data,selected_students)
+    selected_photographers = select_photographers(data, selected_students)
 
     # 保存更新后的数据
     save_data(filename, data)
 
+    write_results_to_file(selected_students, selected_photographers, pk_num,class_number)
+    print("小组 PK 生成完成。")
 
 
-    write_results_to_file(selected_students, selected_photographers,pk_num,class_number)
-    print("")
-
-    # 查询学生状态
+def query_pk_status(data):
+    """查询当前 PK 状态的功能。"""
     while True:
         print("是否要查询学生状态？输入组号（1 到 9），输入 'end' 结束：")
         group_input = input()
@@ -303,10 +304,44 @@ def main():
         else:
             print("无效的组号，请输入 1 到 9 之间的数字。")
 
-    input("按任意键结束程序。")
 
+def main():
+    class_number = None
+    data = None
 
+    while True:
+        print("请选择操作：")
+        print("1: 班级设定")
+        print("2: 小组PK生成")
+        print("3: 查询当前PK状态")
+        print("0: 退出")
 
+        choice = input("请输入选项：")
 
+        if choice == '1':
+            filename, class_number = select_class_file()
+            data = load_data(filename)
+            print(f"班级设定为: {class_number}")
+
+        elif choice == '2':
+            if class_number is None:
+                print("请先设定班级。")
+                input("")
+                continue
+            generate_pk(class_number)  # 直接调用生成 PK 的函数
+
+        elif choice == '3':
+            if data is None:
+                print("请先设定班级并生成 PK。")
+                input("")
+                continue
+            query_pk_status(data)  # 直接调用查询状态的函数
+
+        elif choice == '0':
+            print("程序结束。")
+            break
+
+        else:
+            print("无效的选项，请重新输入。")
 if __name__ == "__main__":
     main()
