@@ -93,9 +93,9 @@ def select_programmers(data):
 
 
 
-def write_results_to_file(selected_students, selected_photographers,pk_num):
+def write_results_to_file(selected_students, selected_photographers,pk_num,class_number):
     current_date = datetime.now().strftime("%Y-%m-%d")
-    filename = f"第{pk_num}次PK{current_date}.txt"
+    filename = f"{class_number}第{pk_num}次PK{current_date}.txt"
 
     with open(filename, 'w', encoding='utf-8') as f:
         f.write("测试要求\n")
@@ -158,14 +158,9 @@ def select_photographers(data, selected_programmers):
 
 
 def backup_data(filename, data, pk_num, class_number):
-    # 根据班级数选择备份文件夹
-    if class_number == '1':
-        backup_folder = '241-1备份'
-    elif class_number == '2':
-        backup_folder = '241-2备份'
-    else:
-        print("无效的班级数，无法保存备份。")
-        return
+    """备份当前数据到指定的文件夹中，文件名包含班级号和时间戳。"""
+    # 根据班级号选择备份文件夹
+    backup_folder = f"{class_number}备份"  # 使用灵活的班级号作为备份文件夹名
 
     # 确保备份文件夹存在
     os.makedirs(backup_folder, exist_ok=True)
@@ -185,17 +180,12 @@ def backup_data(filename, data, pk_num, class_number):
 
 
 def write_absent_students_to_file(data, pk_num, class_number):
+    """将缺席学生的信息写入到指定的文件中，文件名包含班级号和PK次数。"""
     # 获取当前日期
     current_date = datetime.now().strftime("%Y-%m-%d")
 
     # 根据班级号选择文件名
-    if class_number == '1':
-        filename = 'class_241-1_absent.txt'
-    elif class_number == '2':
-        filename = 'class_241-2_absent.txt'
-    else:
-        print("无效的班级号，无法写入缺席学生信息。")
-        return
+    filename = f"{class_number}_absent.txt"  # 使用灵活的班级号作为文件名的一部分
 
     # 打开文件以追加模式写入
     with open(filename, 'a', encoding='utf-8') as f:
@@ -224,19 +214,40 @@ def query_student_status(data, group_number):
 
         print(f"学生: {name}, 状态: {program_status}, 监督状态: {shoot_status}, 缺席次数: {absent_times}")
 
+def list_json_files():
+    """列出当前目录下的所有 JSON 文件，并返回文件名列表。"""
+    json_files = [f for f in os.listdir() if f.endswith('.json')]
+    return json_files
 
-def main():
-    class_number = input("请输入上课班级（1 或 2）：")
-    if class_number == '1':
-        filename = '241-1.json'
-    elif class_number == '2':
-        filename = '241-2.json'
-    else:
-        input("无效的班级输入，程序结束。")
+def select_class_file():
+    """让用户选择一个班级文件，并返回所选文件名和班级号。"""
+    json_files = list_json_files()
+    if not json_files:
+        print("当前目录下没有找到任何 JSON 文件。")
         sys.exit()
 
-    pk_num = input("请输入这是第几次PK：")
+    # 显示文件列表
+    print("可选择的班级文件：")
+    for index, filename in enumerate(json_files, start=1):
+        print(f"{index}. {filename}")
 
+    # 用户选择班级
+    while True:
+        try:
+            choice = int(input("请输入想要操作的班级对应的索引："))
+            if 1 <= choice <= len(json_files):
+                selected_file = json_files[choice - 1]  # 获取用户选择的文件名
+                class_number = selected_file.split('.')[0]  # 假设班级号在文件名中，例如 "241-1.json"
+                return selected_file, class_number  # 返回文件名和班级号
+            else:
+                print("无效的索引，请重新输入。")
+        except ValueError:
+            print("请输入一个有效的数字。")
+
+def main():
+    filename,class_number = select_class_file()
+    #print(class_number)
+    pk_num = input("请输入这是第几次PK：")
     data = load_data(filename)
 
     if not data:
@@ -278,7 +289,7 @@ def main():
 
 
 
-    write_results_to_file(selected_students, selected_photographers,pk_num)
+    write_results_to_file(selected_students, selected_photographers,pk_num,class_number)
     print("")
 
     # 查询学生状态
