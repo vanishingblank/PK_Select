@@ -95,7 +95,7 @@ def select_programmers(data):
 
 def write_results_to_file(selected_students, selected_photographers,pk_num):
     current_date = datetime.now().strftime("%Y-%m-%d")
-    filename = f"{current_date}.txt"
+    filename = f"第{pk_num}次PK{current_date}.txt"
 
     with open(filename, 'w', encoding='utf-8') as f:
         f.write("测试要求\n")
@@ -208,6 +208,21 @@ def write_absent_students_to_file(data, pk_num, class_number):
 
     print(f"缺席学生信息已写入 {filename}")
 
+def query_student_status(data, group_number):
+    group_key = f"{group_number}.0"  # 假设组号格式为 "组号.0"
+    if group_key not in data:
+        print(f"警告: 组 {group_number} 不存在。")
+        return
+
+    students = data[group_key]
+    print(f"组 {group_number} 的学生状态：")
+    for student in students:
+        name = student['name']
+        program_status = "可以比赛" if student['program'] else "不可比赛"
+        shoot_status = "可以监督" if student['shoot'] else "不可监督"
+        absent_times = student.get('absent times', 0)
+
+        print(f"学生: {name}, 状态: {program_status}, 监督状态: {shoot_status}, 缺席次数: {absent_times}")
 
 
 def main():
@@ -265,7 +280,21 @@ def main():
 
     write_results_to_file(selected_students, selected_photographers,pk_num)
     print("")
-    input("")
+
+    # 查询学生状态
+    while True:
+        print("是否要查询学生状态？输入组号（1 到 9），输入 'end' 结束：")
+        group_input = input()
+        if group_input.lower() == 'end':
+            break
+        if group_input in [str(i) for i in range(1, 10)]:  # 支持 1 到 9 的组号
+            query_student_status(data, group_input)
+        else:
+            print("无效的组号，请输入 1 到 9 之间的数字。")
+
+    input("按任意键结束程序。")
+
+
 
 
 if __name__ == "__main__":
