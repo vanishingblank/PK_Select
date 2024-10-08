@@ -291,8 +291,9 @@ def generate_pk(class_number,filename):
     print("小组 PK 生成完成。")
     input("")
 
-def query_pk_status(data):
+def query_pk_status(data,filename):
     """查询当前 PK 状态的功能。"""
+    data = load_data(filename)
     while True:
         print("是否要查询学生状态？输入组号（1 到 9），输入 'end' 结束：")
         group_input = input()
@@ -335,7 +336,7 @@ def main():
                 print("请先设定班级并生成 PK。")
                 input("")
                 continue
-            query_pk_status(data)  # 直接调用查询状态的函数
+            query_pk_status(data,filename)  # 直接调用查询状态的函数
 
         elif choice == '0':
             print("程序结束。")
