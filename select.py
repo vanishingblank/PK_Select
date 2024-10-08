@@ -245,9 +245,8 @@ def select_class_file():
         except ValueError:
             print("请输入一个有效的数字。")
 
-def generate_pk(class_number):
+def generate_pk(class_number,filename):
     """生成小组 PK 的功能。"""
-    filename, class_number = select_class_file()
     pk_num = input("请输入这是第几次PK：")
 
     data = load_data(filename)
@@ -290,7 +289,7 @@ def generate_pk(class_number):
 
     write_results_to_file(selected_students, selected_photographers, pk_num,class_number)
     print("小组 PK 生成完成。")
-
+    input("")
 
 def query_pk_status(data):
     """查询当前 PK 状态的功能。"""
@@ -322,13 +321,14 @@ def main():
             filename, class_number = select_class_file()
             data = load_data(filename)
             print(f"班级设定为: {class_number}")
+            input("")
 
         elif choice == '2':
-            if class_number is None:
+            if class_number is None or data is None:
                 print("请先设定班级。")
                 input("")
                 continue
-            generate_pk(class_number)  # 直接调用生成 PK 的函数
+            generate_pk(class_number,filename)  # 直接调用生成 PK 的函数
 
         elif choice == '3':
             if data is None:
